@@ -1,0 +1,104 @@
+---
+title: "统计计算HW2"
+author: "朱强强 17064001"
+date: "2020年3月29日"
+documentclass: ctexart
+geometry: "left=2.54cm, right=2.54cm, top=2.54cm, bottom=2.54cm"
+output:
+  rticles::ctex:
+    fig_caption: yes
+classoption: "hyperref,"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(prompt=TRUE, comment='', warning=FALSE, 
+                      results="hold")
+```
+
+(1) 在R中使用`set.seed`控制伪随机数初始值，并从$N(3,1)$生成一个样本$y_1,\cdots,y_n$，样本量$n=10$，将样本数据记录在向量$\boldsymbol{y}$中。
+
+```{r}
+set.seed(123)  # 控制伪随机数初始值
+y <- rnorm(10, 3, 1)
+print(y)
+```
+
+(2) 假设已知样本服从正态分布且总体方差$\sigma^2=1$，写出以上样本的对数似然函数。
+
+当$\sigma^2=1$时
+$$
+\begin{aligned}
+L(y) &=\prod_{i=1}^n\frac{1}{\sqrt{2\pi}}\exp{\left(-\frac{(y_i-\mu)^2}{2}\right)}\\
+&=(2\pi)^{-n/2}\exp{\left(-\sum_{i=1}^{n}\frac{(y_i-\mu)^2}{2}\right)}\\
+\log L(y) &=-\frac{n}{2}\ln(2\pi)-\sum_{i=1}^{n}\frac{(y_i-\mu)^2}{2}
+\end{aligned}
+$$
+
+```{r}
+# 对数似然函数
+llk <- function(mu, y) {
+  n <- length(y)
+  log.likelihood <- -(n/2)*log(2*pi)-sum((y-mu)^2)/2
+  return(log.likelihood)
+}
+mu <- mean(y)
+llk(mu, y)
+```
+
+(3) 假设对于总体均值$\mu$有先验信息$\mu \sim Cauchy(0,1)$。设舍选法的目标抽样分布是$\mu \sim p(\mu|\boldsymbol{x})$，试投分布是$\mu \sim Cauchy(0,1)$。请针对(1)中样本，自定义名为accp.rate函数，该函数返回舍选法步骤2中定义的接受率
+$$
+acceptance \quad rate=\frac{p(\mu | \boldsymbol{y})}{c_{opt} p(\mu)}
+$$
+
+$$
+\begin{aligned}
+p(\mu|\boldsymbol{y})&=\frac{p(\boldsymbol{y}|\mu) \times p(\mu)}{\int_{-\infty}^{+\infty}p(\boldsymbol{y}|\mu) \times p(\mu) d\mu}\\
+&\propto p(\mu)\times L(\mu|\boldsymbol{y})
+\end{aligned}
+$$
+
+```{r}
+accp.rate <- function(mu, y) {
+  p <- 1/(1+mu^2)*exp(-sum((y-mu)^2/2))
+  g <- 1/(1+mu^2)
+  c <- max(p/g)
+  accp_rate <- p/(c*g)
+  return(accp_rate)
+}
+```
+
+
+(4) 针对(1)中的样本，使用舍选法，从$p(\mu|\boldsymbol{y})$生成大量随机数。利用直方图，图示后验分布抽样结果。$\mu$后验分布期望的近似值是多少？请和$\mu_0=3$进行比较。
+
+```{r}
+sample <- function(n, mu, y) {
+  Z <- rep(NA, n)
+  i <- 1
+  while (i <= n) {
+    X <- rcauchy(n, 0, 1)
+    U <- runif(1)
+    if (U <= accp.rate(mu, y)) {
+      Z[i] <- X
+      i <- i + 1
+    }
+  }
+  return(Z)
+}
+
+n <- 10
+mu <- 3
+z <- sample(n, mu, y)
+hist(z, prob=T, main="")
+cat("mu后验分布期望的近似值", mean(z), "\n")
+```
+
+(5) 令样本量$n=100$。重复步骤(1)和(4)。
+
+```{r}
+set.seed(123)
+n <- 100
+y <- rnorm(n, 3, 1)
+z <- sample(n, mu, y)
+hist(z, prob=T, main="")
+cat("mu后验分布期望的近似值", mean(z), "\n")
+```
